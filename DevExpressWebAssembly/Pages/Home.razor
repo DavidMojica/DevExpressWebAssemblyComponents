@@ -1,0 +1,171 @@
+﻿@page "/"
+@using System.Collections.ObjectModel
+@using System.Reflection
+@using System.ComponentModel
+@inject IJSRuntime JS
+
+<PageTitle>Eventos</PageTitle>
+
+<h1 class="badge bg-success py-2 px-3 w-100 text-center">Elementos DevExpress</h1>
+
+<span class="badge bg-info w-100 mt-4">Componentes normales</span>
+<article class="text-center">
+    <h6 class="badge bg-primary py-2 px-3 my-4 w-100">Botón DevEx</h6>
+    <DxButton Text="Botón DevExpress" Click="@Action"></DxButton>
+</article>
+
+<article class="text-center">
+    <h6 class="badge bg-primary py-2 px-3 my-4 w-100">Calendario</h6>
+    <DxDateEdit Date="DateTime.Today"></DxDateEdit>
+</article>
+
+<span class="badge bg-danger w-100 mt-4">Componentes complejos</span>
+<article class="text-center">
+    <h6 class="badge bg-primary py-2 px-3 my-4 w-100">DataGrid --> DxDataGrid con DxDatagridColumn</h6>
+    <DxDataGrid Data="@medicamentos" ShowGroupPanel="true" ShowFilterRow="true">
+        @*Implementar*@
+
+
+        <DxDataGridColumn Field="@nameof(Medicamento.Nombre)" SortIndex="0" Caption="Nombre del medicamento" SortOrder="DataGridColumnSortOrder.Ascending" />
+        <DxDataGridDateEditColumn Field="@nameof(Medicamento.FechaCreacion)" DisplayFormat="D" EditorFormat="d" />
+        <DxDataGridSpinEditColumn Field="@nameof(Medicamento.Lote)" TextAlignment="DataGridTextAlign.Left" />
+        <DxDataGridColumn Field="@nameof(Medicamento.PrincipioActivo)" />
+        <DxDataGridCheckBoxColumn Field="@nameof(Medicamento.Disponible)" Width="50px" />
+    </DxDataGrid>
+</article>
+
+<article class="text-center">
+    <h6 class="badge bg-primary py-2 px-3 my-4 w-100">DataGrid Generado con ciclo --> DxGrid con DxGridCommandColumn</h6>
+    <DxGrid Data="@medicamentos">
+        <Columns>
+            <DxGridCommandColumn />
+            @ConstruirColumnas(typeof(Medicamento))
+        </Columns>
+    </DxGrid>
+</article>
+
+@code {
+    private async Task Action()
+    {
+        await JS.InvokeVoidAsync("alert", "Javascript?");
+    }
+
+    private bool GetRandomBool()
+    {
+        return random.Next(2) == 0;
+    }
+
+    /*--------- Controles crud para el DataGrid ------------*/
+    // void OnRowInserting(Dictionary<string, object> itemProperties)
+    // {
+    //     medicamentos.Add(ActualizarMedicamento(new Medicamento(), itemProperties));
+    // }
+
+    void OnRowDeleting(Medicamento medicamento)
+    {
+        medicamentos.Remove(medicamento);
+    }
+
+    void OnRowUpdating(Medicamento medicamento, Dictionary<string, object> itemProperties)
+    {
+        ActualizarMedicamento(medicamento, itemProperties);
+    }
+
+    Task OnInitNewRow(Dictionary<string, object> values)
+    {
+        values.Add("Nombre", "Nuevo medicamento");
+        values.Add("FechaCreacion", DateTime.Now);
+        values.Add("Lote", 13323);
+        values.Add("PrincipioActivo", "Hipografia");
+        values.Add("Disponible", true);
+        return Task.CompletedTask;
+    }
+
+    static Medicamento ActualizarMedicamento(Medicamento medicamento, Dictionary<string, object> itemProperties)
+    {
+        foreach (var field in itemProperties.Keys)
+        {
+            switch (field)
+            {
+                case "PrincipioActivo":
+                    medicamento.PrincipioActivo = (string)itemProperties[nameof(medicamento.PrincipioActivo)];
+                    break;
+                case "Nombre":
+                    medicamento.Nombre = (string)itemProperties[nameof(Medicamento.Nombre)];
+                    break;
+                case "FechaCreacion":
+                    medicamento.FechaCreacion = (DateTime)itemProperties[nameof(medicamento.FechaCreacion)];
+                    break;
+                case "Lote":
+                    medicamento.Lote = (int)itemProperties[nameof(medicamento.Lote)];
+                    break;
+                case "Disponible":
+                    medicamento.Disponible = (bool)itemProperties[nameof(medicamento.Disponible)];
+                    break;
+            }
+        }
+        return medicamento;
+    }
+
+    public class Medicamento
+    {
+        public string PrincipioActivo { get; set; }
+        public int Lote { get; set; }
+        public string Nombre { get; set; }
+        public DateTime FechaCreacion { get; set; }
+        public bool Disponible { get; set; }
+
+        public Medicamento(string principioActivo, int lote, string nombre, DateTime fechaCreacion, bool disponible)
+        {
+            PrincipioActivo = principioActivo;
+            Lote = lote;
+            Nombre = nombre;
+            FechaCreacion = fechaCreacion;
+            Disponible = disponible;
+        }
+    }
+
+    static readonly Random random = new Random();
+    readonly ObservableCollection<Medicamento> medicamentos = new ObservableCollection<Medicamento>();
+
+    protected override void OnInitialized()
+    {
+        /* Generador de medicamentos aleatorios */
+        String[] NombresMedicamentos = {
+            "BlackHole", "Danny Ocean", "Trimebutina", "Orocal+D", "Acetaminofen 500mg"
+        };
+
+            String[] PrincipiosActivos = {
+                "Calcio", "Aceite resina", "Aceite para carros", "Aceite de pescado"
+        };
+
+        foreach (var date in Enumerable.Range(1, 90).Select(i => DateTime.Now.Date.AddDays(i)))
+        {
+            medicamentos.Add(new Medicamento(
+                principioActivo: PrincipiosActivos[random.Next(0, PrincipiosActivos.Length)],
+                lote: random.Next(0, 120000),
+                fechaCreacion: date,
+                nombre: NombresMedicamentos[random.Next(0, NombresMedicamentos.Length)],
+                disponible: GetRandomBool()
+        ));
+        }
+    }
+
+    /* 
+     * CICLO PARA GENERAR EL DATA GRID 2
+     * Las columnas mostrarán en el orden de las propiedades del objeto.
+     */
+    RenderFragment ConstruirColumnas(Type itemType)
+    {
+        var props = TypeDescriptor.GetProperties(itemType);
+        return b =>
+        {
+            foreach (PropertyDescriptor prop in props)
+            {
+                b.OpenComponent(0, typeof(DxGridDataColumn));
+                b.AddAttribute(1, "FieldName", prop.Name);
+                b.CloseComponent();
+            }
+        };
+    }
+}
